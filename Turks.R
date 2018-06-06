@@ -5,9 +5,8 @@ library(rgeos)
 library(sp)
 library(spThin)
 library(scrubr)
-
-
-library(dismo)
+library(rworldmap)
+library(rgdal)
 
 ## Get Species name
 species<-"Meleagris gallopavo"
@@ -71,8 +70,6 @@ optimize<- function(mod.Table){
   return(opt.mod)
 }
 
-mod.Table<-turkRes[[6]]
-
 m<-list()
 pred<-list()
 opt.mod<-list()
@@ -84,7 +81,7 @@ for (i in 1:length(turkRes)){
   feat<-strsplit(as.vector(opt.mod[[i]][,2]), ',')[[1]]
   if (feat == 'L'){feats = 'linear'} else if (feat == 'LQ'){feats = c('quadratic', 'linear')} else if (feat == 'H'){feats = 'hinge'} else if (feat == 'P'){feats = 'product'} else if (feat == 'T'){feats = 'threshold'} else if (feat == 'LQH'){feats = c('linear', 'quadratic', 'hinge')} else if (feat == 'LQHP'){feats = c('linear', 'quadratic', 'hinge', 'product')} else if (feat == 'LQHPT'){feats = c('linear', 'quadratic', 'hinge', 'product', 'threshold')}
   for (j in 1:length(feats)){false.args[which(sub('no','',false.args)==feats[j])] = feats[j]}
-  m[[i]] <-maxent(turkCrop[[i]], thinTurks[[i]][[1]], args=c(false.args, beta.mulr, 'noremoveduplicates', 'noaddsamplestobackground'))
+  m[[i]] <- maxent(turkCrop[[i]], thinTurks[[i]][[1]], args=c(false.args, beta.mulr, 'noremoveduplicates', 'noaddsamplestobackground'))
   pred[[i]]  <- predict(object= m[[i]], x=turkCrop[[i]], na.rm=TRUE, format='GTiff',overwrite=TRUE, progress='text',args='logistic')
 }
 
@@ -94,5 +91,20 @@ for (i in 1:length(modThreshs)){
   pred[[i]][pred[[i]] < modThreshs[[i]]] <- NA
 }
 
-## Compare niches
-
+## Compare niches in environmental space
+e<-extent(c(-141.0021, -52.65366, 14.54541, 83.11611))
+naEnv<-crop(env, e)
+m<-list()
+pred<-list()
+opt.mod<-list()
+for (i in 1:length(turkRes)){
+  opt.mod[[i]]<-optimize(turkRes[[i]])
+  b.m<-opt.mod[[i]]$rm
+  beta.mulr<- paste('betamultiplier=',b.m,sep='')
+  false.args<-c('noautofeature','noproduct','nothreshold','noquadratic','nohinge','nolinear')
+  feat<-strsplit(as.vector(opt.mod[[i]][,2]), ',')[[1]]
+  if (feat == 'L'){feats = 'linear'} else if (feat == 'LQ'){feats = c('quadratic', 'linear')} else if (feat == 'H'){feats = 'hinge'} else if (feat == 'P'){feats = 'product'} else if (feat == 'T'){feats = 'threshold'} else if (feat == 'LQH'){feats = c('linear', 'quadratic', 'hinge')} else if (feat == 'LQHP'){feats = c('linear', 'quadratic', 'hinge', 'product')} else if (feat == 'LQHPT'){feats = c('linear', 'quadratic', 'hinge', 'product', 'threshold')}
+  for (j in 1:length(feats)){false.args[which(sub('no','',false.args)==feats[j])] = feats[j]}
+  m[[i]] <- maxent(turkCrop[[i]], thinTurks[[i]][[1]], args=c(false.args, beta.mulr, 'noremoveduplicates', 'noaddsamplestobackground'))
+  pred[[i]]  <- predict(object= m[[i]], x=naEnv, na.rm=TRUE, format='GTiff',overwrite=TRUE, progress='text',args='logistic')
+}
